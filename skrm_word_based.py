@@ -27,10 +27,13 @@ class DBC:
         else:
             return ap * self.segment
 
-    def detect(self , rt , ap):
+    def detect(self , ap):
         global detectCount
+        data = np.zeros(self.DBC_capacity , dtype = int)
         detectCount = detectCount + 1
-        return self.racetrack[rt][self.ap2index(ap)]
+        for i in range(self.DBC_capacity):
+            data[i] = self.racetrack[i][self.ap2index(ap)]
+        return data
 
     def shiftR(self , ap1 , ap2):
         global shiftCount
@@ -125,7 +128,7 @@ def printResult(accuracy , args):
     print("experiment set up")
     print(f"track_size : {args.track_size}")
     print(f"segment_size : {args.segment_size}")
-    print(f"DBC_capacity : {args.DBC_capacity_size}")
+    print(f"DBC_capacity : {args.DBC_capacity}")
     print(f"HDC_vector_size : {args.HV_size}")
     print("")
     print("experiment result")
@@ -142,7 +145,7 @@ def printResult(accuracy , args):
         f.write("experiment set up\n")
         f.write(f"track_size : {args.track_size}\n")
         f.write(f"segment_size : {args.segment_size}\n")
-        f.write(f"DBC_capacity : {args.DBC_capacity_size}\n")
+        f.write(f"DBC_capacity : {args.DBC_capacity}\n")
         f.write(f"HDC_vector_size : {args.HV_size}\n\n")
 
         f.write("experiment result\n")
