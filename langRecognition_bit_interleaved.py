@@ -21,7 +21,7 @@ def shiftAll(dbc , args):
 
     real_track_size = track_size - segment_size * 2
     data_in_racetrack = HV_size // dbc.DBC_capacity
-    block_count = track_size // data_in_racetrack
+    block_count = real_track_size // data_in_racetrack
     detect = block_count
     insert = block_count
     shift = 1
@@ -29,10 +29,7 @@ def shiftAll(dbc , args):
     dbc.shiftR(1 , 18)
     for block in range(block_count):
         for track in range(DBC_capacity):
-            if track+1 >= dbc.DBC_capacity:
-                dbc.racetrack[0][block * data_in_racetrack] = dbc.racetrack[track][(block+1) * data_in_racetrack]
-            else:
-                dbc.racetrack[track+1][block * data_in_racetrack] = dbc.racetrack[track][(block+1) * data_in_racetrack]
+            dbc.racetrack[(track+1) % DBC_capacity][segment_size + block * data_in_racetrack] = dbc.racetrack[track][segment_size + (block+1) * data_in_racetrack]
     skrm.updateCount(shift , detect , insert , remove)
 
 def genRandomHV(HV_size):
@@ -187,4 +184,3 @@ if __name__=="__main__":
     iM = buildLanguageHV(langAM , dbc , args)
     test(iM , langAM , dbc , args)
    
-

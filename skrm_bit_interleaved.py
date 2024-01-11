@@ -21,6 +21,7 @@ class DBC:
         self.segment_size = args.segment_size
         self.DBC_capacity = args.DBC_capacity
         self.track_size = args.track_size
+        self.HV_size = args.HV_size
 
     def ap2index(self , ap):
         if ap == self.track_size // self.segment_size:
@@ -58,7 +59,7 @@ class DBC:
         global detectCount
         global removeCount
         real_track_size = self.track_size - self.segment_size * 2
-        data_in_racetrack = real_track_size // self.DBC_capacity
+        data_in_racetrack = self.HV_size // self.DBC_capacity
 
         shiftCount = shiftCount + self.segment_size * 2
         detectCount = detectCount + self.segment_size
@@ -66,7 +67,7 @@ class DBC:
         
         for i in range(data_in_racetrack):  #256
             for j in range(self.DBC_capacity):   #32
-                self.racetrack[j][self.segment_size + block * data_in_racetrack + i] = data[self.DBC_capacity * i + j]
+                self.racetrack[j][self.segment_size + block * data_in_racetrack + i] = data[data_in_racetrack * j + i]
 
 """
     def insert(self , rt , ap):
@@ -131,7 +132,7 @@ def printResult(accuracy , args):
     month = now.strftime("%m")
     day = now.strftime("%d")
     
-    with open(f'word_based_{month}{day}' , 'w+') as f:
+    with open(f'bit_interleaved_{month}{day}' , 'w+') as f:
         f.write("experiment set up\n")
         f.write(f"track_size : {args.track_size}\n")
         f.write(f"segment_size : {args.segment_size}\n")
