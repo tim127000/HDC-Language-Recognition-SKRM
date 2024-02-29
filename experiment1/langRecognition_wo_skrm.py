@@ -51,37 +51,37 @@ def computeSumHV(buffer , itemMemory , n , dimension):
         if index >= n:
             nGrams = block[0]
             for i in range(1,n):
-                nGrams = nGrams ^ block[i]
+                nGrams[0] = nGrams[0] ^ block[i][0]
             if nGrams[0] == 1:
                 total_1 = total_1 + 1
             if nGrams[0] == 0:
                 total_0 = total_0 + 1
-            sumHV = sumHV + nGrams;
-            count = count + 1
 
-    print(f"total_0:{total_0}")
-    print(f"total_1:{total_1}")
-    
-    for i in range(len(sumHV)):
-        if sumHV[i] > count / 2:
-            sumHV[i] = 1
-        else:
-            sumHV[i] = 0
-
-    return sumHV
+    return total_0 , total_1
 
 def buildLanguageHV(n , dimension , langAM):
     global max_1
     global max_0
     iM = {}
     langLabels = ['afr', 'bul', 'ces', 'dan', 'nld', 'deu', 'eng', 'est', 'fin', 'fra', 'ell', 'hun', 'ita', 'lav', 'lit', 'pol', 'por', 'ron', 'slk', 'slv', 'spa', 'swe']
+    count_0= np.zeros(len(langLabels) , dtype = int)
+    count_1 = np.zeros(len(langLabels) , dtype = int)
     for i in range(len(langLabels)):
-        fileAddress = './training_texts/'+langLabels[i]+'.txt'
+        fileAddress = '../training_texts/'+langLabels[i]+'.txt'
         with open(fileAddress , 'r') as fp:
             buffer = fp.read();
-        langHV = computeSumHV(buffer , iM , n , dimension)
-        langAM[langLabels[i]] = langHV
+        total_0 , total_1 = computeSumHV(buffer , iM , n , dimension)
+        count_0[i] = total_0
+        count_1[i] = total_1
 
+    with open('nums_of_01' , 'w+') as fp:
+        fp.write("count of 0: ")
+        for i in range(len(langLabels)):
+            fp.write(f"{count_0[i]} ")
+        fp.write("\ncount of 1: ")
+        for i in range(len(langLabels)):
+            fp.write(f"{count_1[i]} ")
+        fp.write("\n")
     return iM
 
 def test(iM , langAM , n , dimension):
@@ -114,11 +114,11 @@ def test(iM , langAM , n , dimension):
     langMap['es'] = 'spa'
     langMap['sv'] = 'swe'
 
-    for filename in os.listdir('./testing_texts'):
+    for filename in os.listdir('../testing_texts'):
         if filename[-3:] != 'txt':
             break
         actualLabel = filename[0:2]
-        with open(os.path.join('./testing_texts' , filename) , 'r') as fp:
+        with open(os.path.join('../testing_texts' , filename) , 'r') as fp:
             buffer = fp.read()
         print(f'start computing test data {filename}...')
         textHV = computeSumHV(buffer , iM , n , dimension)
