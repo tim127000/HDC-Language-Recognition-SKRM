@@ -57,6 +57,7 @@ def hammingDistance(u , v , HV_size):
             sum = sum + 1
     return sum / HV_size
 
+
 def computeSumHV(buffer , itemMemory , tile , args):
     
     track_size = args.track_size

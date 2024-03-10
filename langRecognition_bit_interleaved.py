@@ -11,6 +11,7 @@ def get_parser():
     parser.add_argument('-d' , '--DBC_capacity' , default = 32 , type = int)
     parser.add_argument('-v' , '--HV_size' , default = 8192 , type = int)
     parser.add_argument('-n' , '--n_gram' , default = 3 , type = int)
+    parser.add_argument('-b' , '--back_to_back' , default = 0 , type = int)
     return parser
 
 def shiftAll(dbc , args):
@@ -33,18 +34,20 @@ def shiftAll(dbc , args):
     skrm.updateCount(shift , detect , insert , remove)
 
 def genRandomHV(HV_size):
+    """
     if HV_size%2 != 0:
         print("Dimension is odd!!")
     else:
-        randomIndex = np.arange(HV_size)
-        randomHV = np.zeros(HV_size , dtype = int)
-        np.random.shuffle(randomIndex)
+    """
+    randomIndex = np.arange(HV_size)
+    randomHV = np.zeros(HV_size , dtype = int)
+    np.random.shuffle(randomIndex)
 
-        for i in randomIndex[0:HV_size//2]:
-            randomHV[i] = 1
-        for i in randomIndex[HV_size//2:]:
-            randomHV[i] = 0
-        return randomHV
+    for i in randomIndex[0:HV_size//2]:
+        randomHV[i] = 1
+    for i in randomIndex[HV_size//2:]:
+        randomHV[i] = 0
+    return randomHV
 
 def lookupItemMemory(itemMemory , key , HV_size):
     if key in itemMemory:
@@ -63,12 +66,14 @@ def HammingDistance(u , v , HV_size):
     return sum / HV_size
 
 def computeSumHV(buffer , itemMemory , dbc , args):
-    global nGrams
     track_size = args.track_size
     segment_size = args.segment_size
+    real_track_size = track_size - segment_size * 2
     HV_size = args.HV_size
     DBC_capacity = args.DBC_capacity
+    n_gram = args.n_gram
     data_in_racetrack = HV_size // DBC_capacity
+    block_count = real_track_size // data_in_racetrack
     
     sumHV = np.zeros(HV_size , dtype = int)
     nGrams = np.zeros(HV_size , dtype = int)
@@ -78,28 +83,58 @@ def computeSumHV(buffer , itemMemory , dbc , args):
     insert = 0
     remove = 0
     
-    for index in tqdm(range(len(buffer))):
-        letter = buffer[index]
-        
-        #shift then write
-        shiftAll(dbc , args)
-        data = lookupItemMemory(itemMemory , letter , HV_size)
-        dbc.write(index % args.n_gram , data)
+    #racetrack can only contain one group of data
+    if block_count // n_gram == 1:
+        for index in tqdm(range(len(buffer))):
+            letter = buffer[index]
+            
+            #shift then write
+            shiftAll(dbc , args)
+            data = lookupItemMemory(itemMemory , letter , HV_size)
+            dbc.write(index % n_gram , data)
 
-        #calculate trigramHV and textHV
-        #skip the skrm operation, only calculate the operation count
-        if index >= args.n_gram:
-            shift = shift + segment_size * 4 #dbc and ngrams
-            detect = detect + segment_size
-            insert = insert + segment_size
-            for track in range(DBC_capacity):
-                for i in range(data_in_racetrack):
-                    nGrams[track * data_in_racetrack + i] = dbc.racetrack[track][segment_size + data_in_racetrack * 0 + i] ^ dbc.racetrack[track][segment_size + data_in_racetrack * 1 + i] ^ dbc.racetrack[track][segment_size + data_in_racetrack * 2 + i]
-            sumHV = sumHV + nGrams
-            count = count + 1
+            #calculate trigramHV and textHV
+            #skip the skrm operation, only calculate the operation count
+            if index >= n_gram:
+                shift = shift + segment_size * 4 #dbc and ngrams
+                detect = detect + segment_size
+                insert = insert + segment_size
+                for track in range(DBC_capacity):
+                    for i in range(data_in_racetrack):
+                        nGrams[track * data_in_racetrack + i] = dbc.racetrack[track][segment_size + data_in_racetrack * 0 + i] ^ \
+                                                            dbc.racetrack[track][segment_size + data_in_racetrack * 1 + i] ^ \
+                                                            dbc.racetrack[track][segment_size + data_in_racetrack * 2 + i]
+                sumHV = sumHV + nGrams
+                count = count + 1
+    
+    #racetrack can contain more than one group of data
+    elif block_count // n_gram > 1:
+        group_count = block_count // n_gram
+        for index in tqdm(range(len(buffer) // group_count)):
+            shiftAll(dbc , args)
+            for group in range(group_count):
+                letter = buffer[index + group * (len(buffer) // group_count)]
+                data = lookupItemMemory(itemMemory , letter , HV_size)
+                dbc.write(index % n_gram + group * n_gram , data)
 
-    skrm.updateCount(shift , detect , insert , remove)
-        
+            if index >= n_gram:
+                shift = shift + segment_size * 4
+                detect = detect + segment_size
+                insert = insert + segment_size
+                for group in range(group_count):
+                    for track in range(DBC_capacity):
+                        for i in range(data_in_racetrack):
+                            nGrams[track * data_in_racetrack + i] = dbc.racetrack[track][segment_size + group * (data_in_racetrack * n_gram) + data_in_racetrack * 0 + i] ^ \
+                                                                dbc.racetrack[track][segment_size + group * (data_in_racetrack * n_gram) + data_in_racetrack * 1 + i] ^ \
+                                                                dbc.racetrack[track][segment_size + group * (data_in_racetrack * n_gram) + data_in_racetrack * 2 + i]
+                    sumHV = sumHV + nGrams
+                    count = count + 1
+
+    if args.back_to_back == 0:
+        skrm.updateCount(shift , detect , insert , remove)
+    elif args.back_to_back == 1:
+        skrm.updateCount(shift//2 , detect , insert , remove)
+
     for i in range(len(sumHV)):
         if sumHV[i] > count / 2:
             sumHV[i] = 1
@@ -116,7 +151,7 @@ def buildLanguageHV(langAM , dbc , args):
         with open(fileAddress , 'r') as fp:
             buffer = fp.read()
         print(f"start computing {langLabels[i]}.txt...")
-        langHV = computeSumHV(buffer[0:10000] , iM , dbc , args)
+        langHV = computeSumHV(buffer , iM , dbc , args)
         langAM[langLabels[i]] = langHV
     return iM
 
@@ -157,7 +192,7 @@ def test(iM , langAM , dbc , args):
     langMap['sv'] = 'swe'
 
     for filename in os.listdir('./testing_texts'):
-        if filename[-3:] == 'txt' and int(filename[3]) < 4:
+        if filename[-3:] == 'txt':# and int(filename[3]) < 4:
             actualLabel = filename[0:2]
             with open(os.path.join('./testing_texts' , filename) , 'r') as fp:
                 buffer = fp.read()
