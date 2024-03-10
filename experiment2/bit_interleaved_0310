@@ -1,0 +1,12 @@
+experiment set up
+track_size : 1152
+segment_size : 64
+DBC_capacity : 32
+HDC_vector_size : 8192
+
+experiment result
+insert count : 5248672203
+shift count : 15617294913
+detect count : 5370118272
+remove count : 5248655747
+The accuracy is 0.956943256344454
